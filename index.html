@@ -77,7 +77,7 @@
             <span id="unitTag" class="bg-amber-200 text-amber-900 text-xs font-bold px-2 py-0.5 rounded-full">單元一</span>
             <span id="lessonTag" class="bg-amber-300 text-amber-950 text-xs font-bold px-2 py-0.5 rounded-full">第一課</span>
           </div>
-          <p id="imageDescription" class="text-xs md:text-sm text-amber-900 font-medium mb-1">🖼️️ 【例圖】一位小朋友坐在沙發上，閉著眼睛聽音樂，臉上帶著放鬆的笑容。</p>
+          <p id="imageDescription" class="text-xs md:text-sm text-amber-900 font-medium mb-1">🖼 【例圖】一位小朋友坐在沙發上，閉著眼睛聽音樂，臉上帶著放鬆的笑容。</p>
           <h2 id="promptQuestion" class="text-base md:text-lg font-black text-amber-950">🗣️ 聽音樂可以讓人怎麼樣呢？試著說說看！</h2>
         </div>
       </div>
@@ -99,7 +99,7 @@
       </div>
     </section>
 
-    <!-- 3. 步驟二：詞卡排排看（新增「再播放一次」按鈕） -->
+    <!-- 3. 步驟二：詞卡排排看 -->
     <section class="mb-6">
       <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
         <span class="text-xs font-bold text-amber-800">【步驟 2】將適當的詞卡放入格子中</span>
@@ -369,7 +369,7 @@
       },
       {
         id: 12, unit: "貳、生活大小事", lesson: "第四課：來場快樂的桌遊", icon: "👴",
-        imageDesc: "🖼️️ 【例圖】爺爺和孫子開心地坐在一起玩桌遊，超越了去年的紀錄。",
+        imageDesc: "🖼 【例圖】爺爺和孫子開心地坐在一起玩桌遊，超越了去年的紀錄。",
         promptQuestion: "🗣️ 運動員奮力奔跑，超越了去年的什麼呢？",
         exampleSentence: "課本句型：（打破）（年齡）的（界線）",
         template: [
@@ -509,6 +509,7 @@
     let mediaRecorder = null;
     let audioChunks = [];
     let recordedAudioUrl = null;
+    let mediaStream = null;
 
     const posClassMap = { noun: "color-noun", verb: "color-verb", adj: "color-adj", meas: "color-meas" };
     const posNameMap = { noun: "名詞", verb: "動詞", adj: "形容詞", meas: "量詞" };
@@ -541,6 +542,8 @@
     }
 
     function loadQuestion(index) {
+      if (isRecording) stopRecording();
+
       currentIndex = index;
       currentQuestion = questions[index];
       userAnswers = {};
@@ -548,11 +551,16 @@
 
       document.getElementById('lessonSelect').value = currentQuestion.lesson;
 
+      // 重置播放按鈕與狀態
       const playBtn = document.getElementById('playRecordBtn');
       playBtn.disabled = true;
       playBtn.className = "flex items-center gap-1.5 bg-gray-300 text-gray-600 text-sm font-bold px-4 py-2.5 rounded-xl shadow cursor-not-allowed";
       document.getElementById('sttResult').innerHTML = '<p class="text-gray-400 italic text-xs md:text-sm">點擊上方麥克風，用講的把您組合的短語唸出來...</p>';
-      document.getElementById('feedbackBox').classList.add('hidden');
+      
+      // 清除回饋訊息
+      const feedbackBox = document.getElementById('feedbackBox');
+      feedbackBox.classList.add('hidden');
+      feedbackBox.innerText = '';
 
       document.getElementById('topicIcon').innerText = currentQuestion.icon;
       document.getElementById('unitTag').innerText = currentQuestion.unit;
@@ -628,7 +636,7 @@
       for (let i = 0; i < slots.length; i++) {
         if (slots[i].type === 'slot' && !userAnswers[i]) {
           userAnswers[i] = wordText;
-          playTTS(wordText); // 點擊卡片時發出該詞語語音
+          playTTS(wordText); // 點擊卡片發出讀音
           break;
         }
       }
@@ -639,17 +647,28 @@
 
     function removeWordFromSlot(slotIdx) {
       delete userAnswers[slotIdx];
+      
+      // 移除時同時隱藏過期的回饋訊息
+      const feedbackBox = document.getElementById('feedbackBox');
+      feedbackBox.classList.add('hidden');
+
       renderSlots();
       renderWordBank();
     }
 
+    // 修正1：重置答案時同步隱藏並清空回饋框
     function resetSlots() {
       userAnswers = {};
+      
+      const feedbackBox = document.getElementById('feedbackBox');
+      feedbackBox.classList.add('hidden');
+      feedbackBox.innerText = '';
+
       renderSlots();
       renderWordBank();
     }
 
-    // 新增：步驟二的「再播放一次組合」功能
+    // 播放目前組合短語
     function playCurrentSentenceTTS() {
       const currentText = currentQuestion.template.map((item, idx) => {
         if (item.type === 'text') return item.val;
@@ -701,7 +720,7 @@
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = 'zh-TW';
-        utter.rate = 0.85; // 放慢語速適合學習
+        utter.rate = 0.85; // 語速稍微放慢適合學習者
         window.speechSynthesis.speak(utter);
       }
     }
@@ -725,13 +744,18 @@
           }
         };
 
-        recognition.onend = () => stopRecordingUI();
+        recognition.onend = () => {
+          if (isRecording) {
+            stopRecording();
+          }
+        };
       }
     }
 
+    // 修正2：錄音與音訊播放邏輯優化
     async function toggleRecording() {
       if (!isRecording) {
-        startRecording();
+        await startRecording();
       } else {
         stopRecording();
       }
@@ -742,42 +766,71 @@
       document.getElementById('micBtn').classList.add('pulsing-mic', 'bg-red-600');
       document.getElementById('micText').innerText = "聆聽中，請大聲說話...";
 
-      if (recognition) recognition.start();
+      const playBtn = document.getElementById('playRecordBtn');
+      playBtn.disabled = true;
+      playBtn.className = "flex items-center gap-1.5 bg-gray-300 text-gray-600 text-sm font-bold px-4 py-2.5 rounded-xl shadow cursor-not-allowed";
 
+      // 啟動錄音器
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+        mediaRecorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream);
         audioChunks = [];
-        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
         mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+          const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
           recordedAudioUrl = URL.createObjectURL(audioBlob);
-          const playBtn = document.getElementById('playRecordBtn');
+
+          // 啟用播放按鈕
           playBtn.disabled = false;
           playBtn.className = "flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow cursor-pointer";
+          
+          // 釋放麥克風資源
+          if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            mediaStream = null;
+          }
         };
+
         mediaRecorder.start();
       } catch (e) {
-        console.log("Mic error");
+        console.error("無法開啟麥克風：", e);
+        alert("無法開啟麥克風，請確認是否授權瀏覽器存取麥克風權限！");
+        stopRecording();
+        return;
+      }
+
+      // 啟動語音辨識
+      if (recognition) {
+        try {
+          recognition.start();
+        } catch (err) {
+          console.log("語音辨識已啟動中：", err);
+        }
       }
     }
 
     function stopRecording() {
       isRecording = false;
-      stopRecordingUI();
-      if (recognition) recognition.stop();
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-    }
-
-    function stopRecordingUI() {
-      isRecording = false;
       document.getElementById('micBtn').classList.remove('pulsing-mic', 'bg-red-600');
       document.getElementById('micText').innerText = "按下開始錄音造句";
+
+      if (recognition) {
+        try { recognition.stop(); } catch(e){}
+      }
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
     }
 
     function playUserAudio() {
       if (recordedAudioUrl) {
-        new Audio(recordedAudioUrl).play();
+        const audio = new Audio(recordedAudioUrl);
+        audio.play().catch(err => console.error("播放音訊失敗：", err));
       }
     }
 
