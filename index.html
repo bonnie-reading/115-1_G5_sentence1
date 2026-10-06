@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>五上國語短語樂園 - 讀寫障礙互動輔具</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+      letter-spacing: 0.08em;
+      line-height: 1.8;
+      background-color: #fefce8; /* 柔和米黃背景 */
+    }
+    /* 詞性色彩視覺化鷹架 */
+    .color-noun { background-color: #dbeafe; border-color: #3b82f6; color: #1e40af; } /* 名詞: 藍色 */
+    .color-verb { background-color: #fce7f3; border-color: #ec4899; color: #9d174d; } /* 動詞: 粉紅色 */
+    .color-adj  { background-color: #dcfce7; border-color: #22c55e; color: #14532d; } /* 形容詞: 綠色 */
+    .color-meas { background-color: #fef3c7; border-color: #f59e0b; color: #78350f; } /* 量詞: 黃色 */
+
+    .slot-box {
+      min-width: 105px;
+      min-height: 56px;
+      border-style: dashed;
+      transition: all 0.2s ease;
+    }
+    .card-btn {
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .card-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .pulsing-mic {
+      animation: pulse-red 1.5s infinite;
+    }
+    @keyframes pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen p-3 md:p-6 flex flex-col items-center justify-between">
+
+  <!-- 頂部導覽：課次選擇與積分 -->
+  <header class="w-full max-w-4xl bg-white rounded-2xl p-4 shadow-md flex flex-col sm:flex-row justify-between items-center gap-3 mb-4">
+    <div class="flex items-center space-x-3">
+      <span class="text-3xl">🌟</span>
+      <div>
+        <h1 class="text-lg md:text-xl font-black text-amber-800">國語五上短語學習樂園</h1>
+        <p class="text-xs text-gray-500">多感官生活化造句輔具</p>
+      </div>
+    </div>
+
+    <!-- 課次選擇下拉選單 -->
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      <select id="lessonSelect" onchange="onLessonChange()" class="bg-amber-100 border-2 border-amber-300 text-amber-900 font-bold rounded-xl px-3 py-1.5 text-sm outline-none cursor-pointer">
+        <!-- 課次列表動態載入 -->
+      </select>
+      <div class="bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 text-amber-900 font-bold text-sm whitespace-nowrap">
+        🏆 得分：<span id="scoreText" class="text-amber-600 text-base">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主要練習卡片區 -->
+  <main class="w-full max-w-4xl bg-white rounded-3xl p-5 md:p-8 shadow-xl border-4 border-amber-200 relative">
+    
+    <!-- 1. 生活例圖與口述導引卡 -->
+    <div class="bg-amber-50/80 rounded-2xl p-4 mb-5 border border-amber-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-start space-x-3">
+        <div id="topicIcon" class="text-4xl md:text-5xl bg-white p-3 rounded-2xl shadow-sm shrink-0">🖼️</div>
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span id="unitTag" class="bg-amber-200 text-amber-900 text-xs font-bold px-2 py-0.5 rounded-full">單元一</span>
+            <span id="lessonTag" class="bg-amber-300 text-amber-950 text-xs font-bold px-2 py-0.5 rounded-full">第一課</span>
+          </div>
+          <p id="imageDescription" class="text-xs md:text-sm text-amber-900 font-medium mb-1">🖼️️ 【例圖】一位小朋友坐在沙發上，閉著眼睛聽音樂，臉上帶著放鬆的笑容。</p>
+          <h2 id="promptQuestion" class="text-base md:text-lg font-black text-amber-950">🗣️ 聽音樂可以讓人怎麼樣呢？試著說說看！</h2>
+        </div>
+      </div>
+      <button onclick="playTTS(currentQuestion.promptQuestion)" class="self-end md:self-center bg-amber-500 hover:bg-amber-600 text-white font-bold px-3.5 py-2 rounded-xl text-xs md:text-sm shadow transition flex items-center gap-1 shrink-0">
+        <span>🔊</span> 聽口述引導
+      </button>
+    </div>
+
+    <!-- 2. 步驟一：課本範例與報讀 -->
+    <section class="mb-6 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+      <div class="flex justify-between items-center mb-1">
+        <span class="text-xs font-bold text-slate-500">【步驟 1】觀察課本例句結構</span>
+        <button onclick="playTTS(currentQuestion.exampleSentence)" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1 rounded-lg font-bold">
+          <span>🔊</span> 朗讀課本例句
+        </button>
+      </div>
+      <div id="exampleDisplay" class="text-base md:text-xl font-black text-slate-700 text-center py-1">
+        <!-- 課本範例 -->
+      </div>
+    </section>
+
+    <!-- 3. 步驟二：詞卡排排看（新增「再播放一次」按鈕） -->
+    <section class="mb-6">
+      <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+        <span class="text-xs font-bold text-amber-800">【步驟 2】將適當的詞卡放入格子中</span>
+        
+        <!-- 操作按鈕區 -->
+        <div class="flex items-center gap-2">
+          <button onclick="playCurrentSentenceTTS()" class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded-lg font-bold flex items-center gap-1 shadow-sm transition">
+            <span>🔊</span> 再播放一次組合
+          </button>
+          <button onclick="resetSlots()" class="text-xs text-amber-600 hover:underline font-bold px-1 py-1">
+            重置答案
+          </button>
+        </div>
+      </div>
+
+      <!-- 放置槽區 -->
+      <div id="slotContainer" class="flex flex-wrap items-center justify-center gap-2 p-3 bg-amber-50/50 rounded-2xl min-h-[80px]">
+        <!-- 動態產生結構槽 -->
+      </div>
+
+      <!-- 備選詞卡區 -->
+      <div id="wordBank" class="mt-4 flex flex-wrap justify-center gap-2.5 p-3.5 bg-white rounded-2xl border-2 border-dashed border-amber-300">
+        <!-- 動態產生備選詞卡 -->
+      </div>
+    </section>
+
+    <!-- 4. 步驟三：口語造句與語音校正 -->
+    <section class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-200">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-bold text-blue-800">【步驟 3】不用寫字，用講的大聲造句</span>
+        <span class="text-xs text-blue-500">即時語音辨識與評估</span>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 py-1">
+        <button id="micBtn" onclick="toggleRecording()" class="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white text-base font-bold px-5 py-2.5 rounded-xl shadow transition transform active:scale-95">
+          <span id="micIcon" class="text-xl">🎙️</span>
+          <span id="micText">按下開始錄音造句</span>
+        </button>
+
+        <button id="playRecordBtn" onclick="playUserAudio()" disabled class="flex items-center gap-1.5 bg-gray-300 text-gray-600 text-sm font-bold px-4 py-2.5 rounded-xl shadow transition cursor-not-allowed">
+          <span>▶️</span> 聽聽看自己的錄音
+        </button>
+      </div>
+
+      <!-- 語音辨識輸出 -->
+      <div class="mt-3 bg-white rounded-xl p-2.5 border border-blue-100 text-center min-h-[45px] flex items-center justify-center">
+        <p id="sttResult" class="text-gray-400 italic text-xs md:text-sm">點擊上方麥克風，用講的把您組合的短語唸出來...</p>
+      </div>
+
+      <!-- 語音校正回饋 -->
+      <div id="feedbackBox" class="hidden mt-2 p-2.5 rounded-xl text-center font-bold text-xs md:text-sm"></div>
+    </section>
+
+  </main>
+
+  <!-- 底部分頁導覽 -->
+  <footer class="w-full max-w-4xl flex justify-between items-center mt-4">
+    <button onclick="prevQuestion()" class="bg-white hover:bg-gray-100 text-gray-700 font-bold px-4 py-2 rounded-xl shadow border border-gray-200 text-sm transition">
+      ⬅️ 上一題
+    </button>
+    <span id="pageIndicator" class="font-bold text-amber-900 text-xs md:text-sm">第 1 / 18 題</span>
+    <button onclick="nextQuestion()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2 rounded-xl shadow text-sm transition">
+      下一題 ➡️
+    </button>
+  </footer>
+
+  <!-- 全 18 題庫資料與系統邏輯 -->
+  <script>
+    const questions = [
+      // 第一課：你我之間
+      {
+        id: 1, unit: "壹、當我們同在一起", lesson: "第一課：你我之間", icon: "🎧",
+        imageDesc: "🖼️ 【例圖】一位小朋友坐在沙發上，閉著眼睛聽音樂，臉上帶著放鬆的笑容。",
+        promptQuestion: "🗣️ 聽音樂可以讓人怎麼樣呢？試著說說看！",
+        exampleSentence: "課本句型：讓人（放鬆）（心情）",
+        template: [
+          { type: "text", val: "讓人" },
+          { type: "slot", pos: "verb", role: "動作", correct: "學習" },
+          { type: "slot", pos: "noun", role: "對象", correct: "知識" }
+        ],
+        words: [
+          { text: "學習", pos: "verb" }, { text: "知識", pos: "noun" },
+          { text: "欣賞", pos: "verb" }, { text: "影片", pos: "noun" },
+          { text: "放鬆", pos: "verb" }, { text: "心情", pos: "noun" }
+        ],
+        targetPhrase: "讓人學習知識"
+      },
+      {
+        id: 2, unit: "壹、當我們同在一起", lesson: "第一課：你我之間", icon: "🌳",
+        imageDesc: "🖼️ 【例圖】花園裡有一棵高大的樹與地面上的小草，大風吹來時大樹挺立、小草隨風彎腰。",
+        promptQuestion: "🗣️ 大樹和小草各有長處，大樹會鼓勵小草要怎麼樣呢？",
+        exampleSentence: "課本句型：（原子筆）告訴（鉛筆）要（堅定）",
+        template: [
+          { type: "slot", pos: "noun", role: "角色A", correct: "大樹" },
+          { type: "text", val: "告訴" },
+          { type: "slot", pos: "noun", role: "角色B", correct: "小草" },
+          { type: "text", val: "要" },
+          { type: "slot", pos: "adj", role: "特質", correct: "強大" }
+        ],
+        words: [
+          { text: "大樹", pos: "noun" }, { text: "小草", pos: "noun" }, { text: "強大", pos: "adj" },
+          { text: "大海", pos: "noun" }, { text: "雨滴", pos: "noun" }, { text: "包容", pos: "adj" }
+        ],
+        targetPhrase: "大樹告訴小草要強大"
+      },
+      {
+        id: 3, unit: "壹、當我們同在一起", lesson: "第一課：你我之間", icon: "🍚",
+        imageDesc: "🖼️ 【例圖】餐桌上放著一碗香噴噴的白飯和一雙筷子，兩樣都是吃飯不可或缺的好夥伴。",
+        promptQuestion: "🗣️ 我們吃飯時需要碗也需要筷子，大家會去計較誰重要嗎？",
+        exampleSentence: "課本句型：（刷牙）時沒有人會去計較／（牙刷）和（牙膏）／誰重要",
+        template: [
+          { type: "slot", pos: "verb", role: "動作", correct: "吃飯" },
+          { type: "text", val: "時沒有人會去計較／" },
+          { type: "slot", pos: "noun", role: "物品A", correct: "碗" },
+          { type: "text", val: "和" },
+          { type: "slot", pos: "noun", role: "物品B", correct: "筷子" },
+          { type: "text", val: "／誰重要" }
+        ],
+        words: [
+          { text: "吃飯", pos: "verb" }, { text: "碗", pos: "noun" }, { text: "筷子", pos: "noun" },
+          { text: "打羽球", pos: "verb" }, { text: "球", pos: "noun" }, { text: "球拍", pos: "noun" }
+        ],
+        targetPhrase: "吃飯時沒有人會去計較碗和筷子誰重要"
+      },
+
+      // 第二課：風起，大家都在
+      {
+        id: 4, unit: "壹、當我們同在一起", lesson: "第二課：風起，大家都在", icon: "🌀",
+        imageDesc: "🖼️ 【例圖】颱風天窗外狂風暴雨，路樹劇烈搖晃，風雨比氣象預報說的還要強大許多。",
+        promptQuestion: "🗣️ 這次颱風的威力，是不是遠遠超過了事前大家的預測呢？",
+        exampleSentence: "課本句型：（好處）遠遠超過（你我）的（想像）",
+        template: [
+          { type: "slot", pos: "noun", role: "主題", correct: "威力" },
+          { type: "text", val: "遠遠超過" },
+          { type: "slot", pos: "noun", role: "對象", correct: "事前" },
+          { type: "text", val: "的" },
+          { type: "slot", pos: "noun", role: "結果", correct: "預測" }
+        ],
+        words: [
+          { text: "威力", pos: "noun" }, { text: "事前", pos: "noun" }, { text: "預測", pos: "noun" },
+          { text: "影響", pos: "noun" }, { text: "專家", pos: "noun" }, { text: "評估", pos: "noun" }
+        ],
+        targetPhrase: "威力遠遠超過事前的預測"
+      },
+      {
+        id: 5, unit: "壹、當我們同在一起", lesson: "第二課：風起，大家都在", icon: "😊",
+        imageDesc: "🖼️ 【例圖】小女孩在操場跑步運動後，雙頰紅通通的，露出燦爛的笑容。",
+        promptQuestion: "🗣️ 小女孩跑完步後，臉頰看起來怎麼樣呢？",
+        exampleSentence: "課本句型：（精彩）的（內容）",
+        template: [
+          { type: "slot", pos: "adj", role: "狀態", correct: "泛紅" },
+          { type: "text", val: "的" },
+          { type: "slot", pos: "noun", role: "部位", correct: "臉蛋" }
+        ],
+        words: [
+          { text: "泛紅", pos: "adj" }, { text: "臉蛋", pos: "noun" },
+          { text: "鮮紅", pos: "adj" }, { text: "花朵", pos: "noun" }
+        ],
+        targetPhrase: "泛紅的臉蛋"
+      },
+      {
+        id: 6, unit: "壹、當我們同在一起", lesson: "第二課：風起，大家都在", icon: "📷",
+        imageDesc: "🖼️ 【例圖】一位攝影師背著背包，胸前掛著相機在風景區捕捉美麗畫面。",
+        promptQuestion: "🗣️ 攝影師出門時，正帶著什麼東西四處做什麼事呢？",
+        exampleSentence: "課本句型：帶著（氣球）四處（旅行）",
+        template: [
+          { type: "text", val: "帶著" },
+          { type: "slot", pos: "noun", role: "物品", correct: "相機" },
+          { type: "text", val: "四處" },
+          { type: "slot", pos: "verb", role: "動作", correct: "拍照" }
+        ],
+        words: [
+          { text: "相機", pos: "noun" }, { text: "拍照", pos: "verb" },
+          { text: "筆電", pos: "noun" }, { text: "演講", pos: "verb" }
+        ],
+        targetPhrase: "帶著相機四處拍照"
+      },
+
+      // 第三課：廉頗與藺相如
+      {
+        id: 7, unit: "壹、當我們同在一起", lesson: "第三課：廉頗與藺相如", icon: "🏀",
+        imageDesc: "🖼️ 【例圖】籃球比賽中，選手投進關鍵一球，記分板顯示打破了全校最高得分紀錄。",
+        promptQuestion: "🗣️ 這位籃球選手表現傑出，立下了什麼棒紀錄呢？",
+        exampleSentence: "課本句型：立下（「完璧歸趙」）的（奇功）",
+        template: [
+          { type: "text", val: "立下" },
+          { type: "slot", pos: "adj", role: "榮譽/表現", correct: "得分最高" },
+          { type: "text", val: "的" },
+          { type: "slot", pos: "noun", role: "成果", correct: "紀錄" }
+        ],
+        words: [
+          { text: "得分最高", pos: "adj" }, { text: "紀錄", pos: "noun" },
+          { text: "最佳歌手", pos: "adj" }, { text: "美譽", pos: "noun" }
+        ],
+        targetPhrase: "立下得分最高的紀錄"
+      },
+      {
+        id: 8, unit: "壹、當我們同在一起", lesson: "第三課：廉頗與藺相如", icon: "🚦",
+        imageDesc: "🖼️ 【例圖】上學時間繁忙的大路口，義交著裝整齊指引小朋友安全過馬路。",
+        promptQuestion: "🗣️ 放學過馬路時，路口有誰在做什麼事情呢？",
+        exampleSentence: "課本句型：（內部）有（我）（協助國君）",
+        template: [
+          { type: "slot", pos: "noun", role: "地點", correct: "路口" },
+          { type: "text", val: "有" },
+          { type: "slot", pos: "noun", role: "人物", correct: "義交" },
+          { type: "slot", pos: "verb", role: "任務", correct: "指揮交通" }
+        ],
+        words: [
+          { text: "路口", pos: "noun" }, { text: "義交", pos: "noun" }, { text: "指揮交通", pos: "verb" },
+          { text: "教室", pos: "noun" }, { text: "老師", pos: "noun" }, { text: "指導學生", pos: "verb" }
+        ],
+        targetPhrase: "路口有義交指揮交通"
+      },
+      {
+        id: 9, unit: "壹、當我們同在一起", lesson: "第三課：廉頗與藺相如", icon: "✉️",
+        imageDesc: "🖼️ 【例圖】哥哥收到期待已久的獲獎通知信，高興地跳起來，臉上滿是興奮。",
+        promptQuestion: "🗣️ 收到這個好消息時，哥哥的心情怎麼樣呢？",
+        exampleSentence: "課本句型：（這件事）讓（廉頗）（十分不滿）",
+        template: [
+          { type: "slot", pos: "noun", role: "事件", correct: "這個消息" },
+          { type: "text", val: "讓" },
+          { type: "slot", pos: "noun", role: "人物", correct: "哥哥" },
+          { type: "slot", pos: "adj", role: "感受", correct: "非常興奮" }
+        ],
+        words: [
+          { text: "這個消息", pos: "noun" }, { text: "哥哥", pos: "noun" }, { text: "非常興奮", pos: "adj" },
+          { text: "這首歌", pos: "noun" }, { text: "歌迷", pos: "noun" }, { text: "相當感動", pos: "adj" }
+        ],
+        targetPhrase: "這個消息讓哥哥非常興奮"
+      },
+
+      // 第四課：來場快樂的桌遊
+      {
+        id: 10, unit: "貳、生活大小事", lesson: "第四課：來場快樂的桌遊", icon: "🪙",
+        imageDesc: "🖼️ 【例圖】小男孩在超商買完東西，伸手接過店員找回給他的幾枚硬幣。",
+        promptQuestion: "🗣️ 付錢買完東西後，小男孩拿到什麼了呢？",
+        exampleSentence: "課本句型：（得）到（應得）的（利潤）",
+        template: [
+          { type: "slot", pos: "verb", role: "動作", correct: "拿" },
+          { type: "text", val: "到" },
+          { type: "slot", pos: "verb", role: "狀態", correct: "找回" },
+          { type: "text", val: "的" },
+          { type: "slot", pos: "noun", role: "物品", correct: "零錢" }
+        ],
+        words: [
+          { text: "拿", pos: "verb" }, { text: "找回", pos: "verb" }, { text: "零錢", pos: "noun" },
+          { text: "看", pos: "verb" }, { text: "洗好", pos: "verb" }, { text: "衣服", pos: "noun" }
+        ],
+        targetPhrase: "拿到找回的零錢"
+      },
+      {
+        id: 11, unit: "貳、生活大小事", lesson: "第四課：來場快樂的桌遊", icon: "🔔",
+        imageDesc: "🖼️ 【例圖】下課時原本非常吵雜的教室，鐘聲響起後大家坐好安靜下來。",
+        promptQuestion: "🗣️ 上課鐘聲響起後，教室的聲音發生了什麼改變？",
+        exampleSentence: "課本句型：從（零亂）變成（和諧）",
+        template: [
+          { type: "text", val: "從" },
+          { type: "slot", pos: "adj", role: "狀態A", correct: "吵雜" },
+          { type: "text", val: "變成" },
+          { type: "slot", pos: "adj", role: "狀態B", correct: "安靜" }
+        ],
+        words: [
+          { text: "吵雜", pos: "adj" }, { text: "安靜", pos: "adj" },
+          { text: "低沉", pos: "adj" }, { text: "高亢", pos: "adj" }
+        ],
+        targetPhrase: "從吵雜變成安靜"
+      },
+      {
+        id: 12, unit: "貳、生活大小事", lesson: "第四課：來場快樂的桌遊", icon: "👴",
+        imageDesc: "🖼️️ 【例圖】爺爺和孫子開心地坐在一起玩桌遊，超越了去年的紀錄。",
+        promptQuestion: "🗣️ 運動員奮力奔跑，超越了去年的什麼呢？",
+        exampleSentence: "課本句型：（打破）（年齡）的（界線）",
+        template: [
+          { type: "slot", pos: "verb", role: "動作", correct: "超越" },
+          { type: "slot", pos: "noun", role: "範圍", correct: "去年" },
+          { type: "text", val: "的" },
+          { type: "slot", pos: "noun", role: "目標", correct: "紀錄" }
+        ],
+        words: [
+          { text: "超越", pos: "verb" }, { text: "去年", pos: "noun" }, { text: "紀錄", pos: "noun" },
+          { text: "突破", pos: "verb" }, { text: "空間", pos: "noun" }, { text: "限制", pos: "noun" }
+        ],
+        targetPhrase: "超越去年的紀錄"
+      },
+
+      // 第五課：超級英雄
+      {
+        id: 13, unit: "貳、生活大小事", lesson: "第五課：超級英雄", icon: "🍳",
+        imageDesc: "🖼️ 【例圖】小廚師穿著圍裙，雙手端著剛做好、香氣四溢的美味料理。",
+        promptQuestion: "🗣️ 圖中的廚師用什麼，煮出了什麼樣的料理呢？",
+        exampleSentence: "課本句型：用（直笛）（吹奏）（簡單）的（旋律）",
+        template: [
+          { type: "text", val: "用" },
+          { type: "slot", pos: "noun", role: "部位/工具", correct: "雙手" },
+          { type: "slot", pos: "verb", role: "動作", correct: "烹飪" },
+          { type: "slot", pos: "adj", role: "形容詞", correct: "美味" },
+          { type: "text", val: "的" },
+          { type: "slot", pos: "noun", role: "成果", correct: "料理" }
+        ],
+        words: [
+          { text: "雙手", pos: "noun" }, { text: "烹飪", pos: "verb" }, { text: "美味", pos: "adj" }, { text: "料理", pos: "noun" },
+          { text: "畫筆", pos: "noun" }, { text: "描繪", pos: "verb" }, { text: "美麗", pos: "adj" }, { text: "景色", pos: "noun" }
+        ],
+        targetPhrase: "用雙手烹飪美味的料理"
+      },
+      {
+        id: 14, unit: "貳、生活大小事", lesson: "第五課：超級英雄", icon: "🎠",
+        imageDesc: "🖼️ 【例圖】小朋友們在遊樂園裡歡樂地騎著旋轉木馬，拍照留念。",
+        promptQuestion: "🗣️ 我們去遊樂園的時候，幾乎都坐過什麼設施呢？",
+        exampleSentence: "課本句型：（許多人）在（學校）都（吹）過（直笛）",
+        template: [
+          { type: "slot", pos: "noun", role: "人物", correct: "我們" },
+          { type: "text", val: "在" },
+          { type: "slot", pos: "noun", role: "地點", correct: "遊樂園" },
+          { type: "text", val: "都" },
+          { type: "slot", pos: "verb", role: "動作", correct: "坐" },
+          { type: "text", val: "過" },
+          { type: "slot", pos: "noun", role: "設施", correct: "旋轉木馬" }
+        ],
+        words: [
+          { text: "我們", pos: "noun" }, { text: "遊樂園", pos: "noun" }, { text: "坐", pos: "verb" }, { text: "旋轉木馬", pos: "noun" },
+          { text: "大家", pos: "noun" }, { text: "動物園", pos: "noun" }, { text: "看", pos: "verb" }, { text: "老虎", pos: "noun" }
+        ],
+        targetPhrase: "我們在遊樂園都坐過旋轉木馬"
+      },
+      {
+        id: 15, unit: "貳、生活大小事", lesson: "第五課：超級英雄", icon: "🏫",
+        imageDesc: "🖼️ 【例圖】教室裡一群活潑的小朋友正圍在一起做手作，笑得很開心。",
+        promptQuestion: "🗣️ 教室裡這群小朋友心情怎麼樣？他們是什麼樣的學生呢？",
+        exampleSentence: "課本句型：（電影）中（無所不能）的（超級）（英雄）",
+        template: [
+          { type: "slot", pos: "noun", role: "場所", correct: "教室" },
+          { type: "text", val: "中" },
+          { type: "slot", pos: "adj", role: "狀態", correct: "興高采烈" },
+          { type: "text", val: "的" },
+          { type: "slot", pos: "adj", role: "特質", correct: "可愛" },
+          { type: "slot", pos: "noun", role: "人物", correct: "學生" }
+        ],
+        words: [
+          { text: "教室", pos: "noun" }, { text: "興高采烈", pos: "adj" }, { text: "可愛", pos: "adj" }, { text: "學生", pos: "noun" },
+          { text: "故事", pos: "noun" }, { text: "百戰百勝", pos: "adj" }, { text: "無敵", pos: "adj" }, { text: "球隊", pos: "noun" }
+        ],
+        targetPhrase: "教室中興高采烈的可愛學生"
+      },
+
+      // 第六課：世足賽的贏家
+      {
+        id: 16, unit: "貳、生活大小事", lesson: "第六課：世足賽的贏家", icon: "🍽️",
+        imageDesc: "🖼️ 【例圖】水槽裡有一個沾滿油膩醬汁的盤子，清洗起來比較費工夫。",
+        promptQuestion: "🗣️ 油膩的盤子在清洗的時候，會感覺怎麼樣呢？",
+        exampleSentence: "課本句型：（掩埋）時（不易分解）",
+        template: [
+          { type: "slot", pos: "verb", role: "動作", correct: "清洗" },
+          { type: "text", val: "時" },
+          { type: "slot", pos: "adj", role: "狀況", correct: "較難洗淨" }
+        ],
+        words: [
+          { text: "清洗", pos: "verb" }, { text: "較難洗淨", pos: "adj" },
+          { text: "分類", pos: "verb" }, { text: "容易分辨", pos: "adj" }
+        ],
+        targetPhrase: "清洗時較難洗淨"
+      },
+      {
+        id: 17, unit: "貳、生活大小事", lesson: "第六課：世足賽的贏家", icon: "🌲",
+        imageDesc: "🖼️ 【例圖】茂密的大森林裡，長滿了高大的樹木與各式各樣的綠色植物。",
+        promptQuestion: "🗣️ 在大自然的山林裡，最不能缺少的是什麼呢？",
+        exampleSentence: "課本句型：（生活）中不可或缺的（容器）",
+        template: [
+          { type: "slot", pos: "noun", role: "環境", correct: "山林" },
+          { type: "text", val: "中不可或缺的" },
+          { type: "slot", pos: "noun", role: "事物", correct: "植物" }
+        ],
+        words: [
+          { text: "山林", pos: "noun" }, { text: "植物", pos: "noun" },
+          { text: "寫作", pos: "noun" }, { text: "題材", pos: "noun" }
+        ],
+        targetPhrase: "山林中不可或缺的植物"
+      },
+      {
+        id: 18, unit: "貳、生活大小事", lesson: "第六課：世足賽的贏家", icon: "🏛️",
+        imageDesc: "🖼️ 【例圖】雄偉的歷史博物館建築前，展出許多珍貴的古物與民俗文化展品。",
+        promptQuestion: "🗣️ 這座展覽館結合了民俗與歷史，是一座什麼樣的博物館呢？",
+        exampleSentence: "課本句型：一（場）（球技）與（時尚）的（嘉年華）",
+        template: [
+          { type: "text", val: "一" },
+          { type: "slot", pos: "meas", role: "單位", correct: "座" },
+          { type: "slot", pos: "noun", role: "主題A", correct: "民俗" },
+          { type: "text", val: "與" },
+          { type: "slot", pos: "noun", role: "主題B", correct: "歷史" },
+          { type: "text", val: "的" },
+          { type: "slot", pos: "noun", role: "場所", correct: "博物館" }
+        ],
+        words: [
+          { text: "座", pos: "meas" }, { text: "民俗", pos: "noun" }, { text: "歷史", pos: "noun" }, { text: "博物館", pos: "noun" },
+          { text: "位", pos: "meas" }, { text: "生物", pos: "noun" }, { text: "化學", pos: "noun" }, { text: "研究員", pos: "noun" }
+        ],
+        targetPhrase: "一座民俗與歷史的博物館"
+      }
+    ];
+
+    let currentIndex = 0;
+    let score = 0;
+    let currentQuestion = questions[0];
+    let userAnswers = {};
+    let isRecording = false;
+    let recognition = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordedAudioUrl = null;
+
+    const posClassMap = { noun: "color-noun", verb: "color-verb", adj: "color-adj", meas: "color-meas" };
+    const posNameMap = { noun: "名詞", verb: "動詞", adj: "形容詞", meas: "量詞" };
+
+    window.onload = () => {
+      initLessonDropdown();
+      loadQuestion(0);
+      setupSpeechRecognition();
+    };
+
+    function initLessonDropdown() {
+      const select = document.getElementById('lessonSelect');
+      select.innerHTML = '';
+      
+      const lessons = [...new Set(questions.map(q => q.lesson))];
+      lessons.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l;
+        opt.innerText = l;
+        select.appendChild(opt);
+      });
+    }
+
+    function onLessonChange() {
+      const selectedLesson = document.getElementById('lessonSelect').value;
+      const targetIndex = questions.findIndex(q => q.lesson === selectedLesson);
+      if (targetIndex !== -1) {
+        loadQuestion(targetIndex);
+      }
+    }
+
+    function loadQuestion(index) {
+      currentIndex = index;
+      currentQuestion = questions[index];
+      userAnswers = {};
+      recordedAudioUrl = null;
+
+      document.getElementById('lessonSelect').value = currentQuestion.lesson;
+
+      const playBtn = document.getElementById('playRecordBtn');
+      playBtn.disabled = true;
+      playBtn.className = "flex items-center gap-1.5 bg-gray-300 text-gray-600 text-sm font-bold px-4 py-2.5 rounded-xl shadow cursor-not-allowed";
+      document.getElementById('sttResult').innerHTML = '<p class="text-gray-400 italic text-xs md:text-sm">點擊上方麥克風，用講的把您組合的短語唸出來...</p>';
+      document.getElementById('feedbackBox').classList.add('hidden');
+
+      document.getElementById('topicIcon').innerText = currentQuestion.icon;
+      document.getElementById('unitTag').innerText = currentQuestion.unit;
+      document.getElementById('lessonTag').innerText = currentQuestion.lesson;
+      document.getElementById('imageDescription').innerText = currentQuestion.imageDesc;
+      document.getElementById('promptQuestion').innerText = currentQuestion.promptQuestion;
+      document.getElementById('exampleDisplay').innerText = currentQuestion.exampleSentence;
+      document.getElementById('pageIndicator').innerText = `第 ${currentIndex + 1} / ${questions.length} 題`;
+
+      renderSlots();
+      renderWordBank();
+    }
+
+    function renderSlots() {
+      const container = document.getElementById('slotContainer');
+      container.innerHTML = '';
+
+      currentQuestion.template.forEach((item, slotIdx) => {
+        if (item.type === 'text') {
+          const span = document.createElement('span');
+          span.className = 'text-lg md:text-2xl font-black text-slate-700 mx-0.5';
+          span.innerText = item.val;
+          container.appendChild(span);
+        } else {
+          const slot = document.createElement('div');
+          const posClass = posClassMap[item.pos] || 'bg-white';
+          const filledWord = userAnswers[slotIdx];
+
+          slot.className = `slot-box rounded-2xl border-2 flex flex-col items-center justify-center p-1.5 cursor-pointer ${posClass}`;
+          
+          if (filledWord) {
+            slot.innerHTML = `
+              <span class="text-base md:text-lg font-black">${filledWord}</span>
+              <span class="text-[10px] opacity-75">（點擊退回）</span>
+            `;
+            slot.onclick = () => removeWordFromSlot(slotIdx);
+          } else {
+            slot.innerHTML = `
+              <span class="text-xs font-bold opacity-60">【${item.role}】</span>
+              <span class="text-[10px] text-gray-500">（${posNameMap[item.pos]}）</span>
+            `;
+          }
+          container.appendChild(slot);
+        }
+      });
+    }
+
+    function renderWordBank() {
+      const bank = document.getElementById('wordBank');
+      bank.innerHTML = '';
+      const usedWords = Object.values(userAnswers);
+
+      currentQuestion.words.forEach((w) => {
+        const isUsed = usedWords.includes(w.text);
+        const btn = document.createElement('button');
+        const posClass = posClassMap[w.pos] || 'bg-gray-100';
+
+        btn.className = `card-btn px-3.5 py-2 rounded-xl border-2 font-black text-base shadow-sm ${posClass} ${isUsed ? 'opacity-30 cursor-not-allowed' : ''}`;
+        btn.innerText = w.text;
+        
+        if (!isUsed) {
+          btn.onclick = () => assignWordToFirstAvailableSlot(w.text);
+        } else {
+          btn.disabled = true;
+        }
+
+        bank.appendChild(btn);
+      });
+    }
+
+    function assignWordToFirstAvailableSlot(wordText) {
+      const slots = currentQuestion.template;
+      for (let i = 0; i < slots.length; i++) {
+        if (slots[i].type === 'slot' && !userAnswers[i]) {
+          userAnswers[i] = wordText;
+          playTTS(wordText); // 點擊卡片時發出該詞語語音
+          break;
+        }
+      }
+      renderSlots();
+      renderWordBank();
+      checkCompletion();
+    }
+
+    function removeWordFromSlot(slotIdx) {
+      delete userAnswers[slotIdx];
+      renderSlots();
+      renderWordBank();
+    }
+
+    function resetSlots() {
+      userAnswers = {};
+      renderSlots();
+      renderWordBank();
+    }
+
+    // 新增：步驟二的「再播放一次組合」功能
+    function playCurrentSentenceTTS() {
+      const currentText = currentQuestion.template.map((item, idx) => {
+        if (item.type === 'text') return item.val;
+        return userAnswers[idx] ? userAnswers[idx] : '';
+      }).join('');
+
+      if (Object.keys(userAnswers).length === 0) {
+        playTTS("請先點選下方詞卡放到格子裡，再播放聽聽看喔！");
+      } else {
+        playTTS(currentText);
+      }
+    }
+
+    function checkCompletion() {
+      const slotIndices = currentQuestion.template
+        .map((item, idx) => item.type === 'slot' ? idx : null)
+        .filter(idx => idx !== null);
+
+      const allFilled = slotIndices.every(idx => userAnswers[idx]);
+
+      if (allFilled) {
+        let isCorrect = true;
+        slotIndices.forEach(idx => {
+          if (userAnswers[idx] !== currentQuestion.template[idx].correct) {
+            isCorrect = false;
+          }
+        });
+
+        if (isCorrect) {
+          score += 10;
+          document.getElementById('scoreText').innerText = score;
+          const fullSentence = buildCurrentSentence();
+          showFeedback(true, `🎉 排對了！「${fullSentence}」，現在點選錄音鍵大聲說出來吧！`);
+          playTTS(`太棒了！組合成功：${fullSentence}`);
+        } else {
+          showFeedback(false, "💡 詞性很對，但意思可以再調整一下，讓句子更通順喔！");
+        }
+      }
+    }
+
+    function buildCurrentSentence() {
+      return currentQuestion.template.map((item, idx) => {
+        return item.type === 'text' ? item.val : (userAnswers[idx] || '___');
+      }).join('');
+    }
+
+    function playTTS(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'zh-TW';
+        utter.rate = 0.85; // 放慢語速適合學習
+        window.speechSynthesis.speak(utter);
+      }
+    }
+
+    function setupSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'zh-TW';
+        recognition.continuous = false;
+        recognition.interimResults = true;
+
+        recognition.onresult = (event) => {
+          const transcript = Array.from(event.results)
+            .map(result => result[0].transcript)
+            .join('');
+          document.getElementById('sttResult').innerHTML = `<span class="text-blue-900 font-bold text-base">「${transcript}」</span>`;
+          
+          if (event.results[0].isFinal) {
+            evaluateSpeech(transcript);
+          }
+        };
+
+        recognition.onend = () => stopRecordingUI();
+      }
+    }
+
+    async function toggleRecording() {
+      if (!isRecording) {
+        startRecording();
+      } else {
+        stopRecording();
+      }
+    }
+
+    async function startRecording() {
+      isRecording = true;
+      document.getElementById('micBtn').classList.add('pulsing-mic', 'bg-red-600');
+      document.getElementById('micText').innerText = "聆聽中，請大聲說話...";
+
+      if (recognition) recognition.start();
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+          recordedAudioUrl = URL.createObjectURL(audioBlob);
+          const playBtn = document.getElementById('playRecordBtn');
+          playBtn.disabled = false;
+          playBtn.className = "flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow cursor-pointer";
+        };
+        mediaRecorder.start();
+      } catch (e) {
+        console.log("Mic error");
+      }
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      stopRecordingUI();
+      if (recognition) recognition.stop();
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    }
+
+    function stopRecordingUI() {
+      isRecording = false;
+      document.getElementById('micBtn').classList.remove('pulsing-mic', 'bg-red-600');
+      document.getElementById('micText').innerText = "按下開始錄音造句";
+    }
+
+    function playUserAudio() {
+      if (recordedAudioUrl) {
+        new Audio(recordedAudioUrl).play();
+      }
+    }
+
+    function evaluateSpeech(userSpokenText) {
+      const target = currentQuestion.targetPhrase;
+      const keyWords = currentQuestion.template
+        .filter(t => t.type === 'slot')
+        .map(t => t.correct);
+
+      let matchedCount = 0;
+      keyWords.forEach(kw => {
+        if (userSpokenText.includes(kw)) matchedCount++;
+      });
+
+      if (userSpokenText.includes(target) || matchedCount === keyWords.length) {
+        showFeedback(true, `🌟 發音太清楚了！完整的說出了：「${userSpokenText}」！`);
+        playTTS("好棒的發音！你說得非常清楚！");
+      } else if (matchedCount > 0) {
+        showFeedback(false, `聽到了『${userSpokenText}』，已經說對一大半囉！再大聲試一次！`);
+      } else {
+        showFeedback(false, `別擔心，對著上方的詞卡再大聲唸一次看看喔！`);
+      }
+    }
+
+    function showFeedback(isSuccess, message) {
+      const box = document.getElementById('feedbackBox');
+      box.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-amber-100', 'text-amber-800');
+      box.classList.add(isSuccess ? 'bg-green-100' : 'bg-amber-100', isSuccess ? 'text-green-800' : 'text-amber-800');
+      box.innerText = message;
+    }
+
+    function nextQuestion() {
+      if (currentIndex < questions.length - 1) {
+        loadQuestion(currentIndex + 1);
+      } else {
+        alert("🎉 恭喜你完成了五上第一、二單元所有的短語練習！太優秀了！");
+      }
+    }
+
+    function prevQuestion() {
+      if (currentIndex > 0) {
+        loadQuestion(currentIndex - 1);
+      }
+    }
+  </script>
+</body>
+</html>
